@@ -1251,7 +1251,6 @@ buildMenu();
   const SUPABASE_URL  = 'https://cnvqltudccvzckmbqdkn.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNudnFsdHVkY2N2emNrbWJxZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzY0NzcsImV4cCI6MjA5OTU1MjQ3N30.ezmrOLBOY0eF63CHPOTDWaNfdyFv9L34VyLw0GRmwgw';
   try {
-    // Carica libreria Supabase
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
@@ -1260,17 +1259,23 @@ buildMenu();
       document.head.appendChild(s);
     });
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const { data, error } = await Promise.race([
-      sb.from('menu_items').select('sezione,nome,ingredienti,prezzo,badge,allergeni').eq('attivo', true).order('ordine'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-    ]);
+    const fetchPromise = sb
+      .from('menu_items')
+      .select('sezione,nome,ingredienti,prezzo,badge,allergeni')
+      .eq('attivo', true)
+      .order('ordine')
+      .then(res => res);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 5000)
+    );
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
     if (!error && data && data.length > 0) {
       const rows = data.map(r => [r.sezione, r.nome, r.ingredienti||'', r.prezzo||'', r.badge||'', r.allergeni||'']);
       buildMenu(rows);
       console.log('✅ Menu aggiornato da Supabase (' + rows.length + ' voci)');
     }
   } catch(e) {
-    console.log('ℹ️ Supabase non disponibile, uso dati locali');
+    console.log('ℹ️ Supabase non disponibile:', e.message);
   }
 })();
 </script>
