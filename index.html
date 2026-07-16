@@ -964,6 +964,8 @@ function buildMenu(dataOverride) {
 
   // Nav — aggiunge data-section a ogni bottone
   const navInner = document.getElementById('navInner');
+  navInner.innerHTML = '';
+  document.getElementById('menuContent').innerHTML = '';
   SECTIONS.forEach(s => {
     if (!groups[s.id].length) return;
     const btn = document.createElement('button');
