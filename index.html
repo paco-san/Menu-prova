@@ -1243,36 +1243,35 @@ function goTo(id) {
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - navH - 4, behavior: 'smooth' });
 }
 
-// Inizializzazione: prova Supabase, fallback ai dati locali
-(async function initMenu() {
+// Mostra subito il menu con dati statici
+buildMenu();
+
+// Poi prova Supabase in background e aggiorna se disponibile
+(async function initMenuSupabase() {
   const SUPABASE_URL  = 'https://cnvqltudccvzckmbqdkn.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNudnFsdHVkY2N2emNrbWJxZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzY0NzcsImV4cCI6MjA5OTU1MjQ3N30.ezmrOLBOY0eF63CHPOTDWaNfdyFv9L34VyLw0GRmwgw';
   try {
-    await new Promise(resolve => {
+    // Carica libreria Supabase
+    await new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-      s.onload = resolve; s.onerror = resolve;
+      s.onload = resolve;
+      s.onerror = reject;
       document.head.appendChild(s);
     });
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const { data, error } = await sb
-      .from('menu_items')
-      .select('sezione,nome,ingredienti,prezzo,badge,allergeni')
-      .eq('attivo', true)
-      .order('ordine', { ascending: true })
-      .abortSignal(controller.signal);
-    clearTimeout(timeout);
+    const { data, error } = await Promise.race([
+      sb.from('menu_items').select('sezione,nome,ingredienti,prezzo,badge,allergeni').eq('attivo', true).order('ordine'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+    ]);
     if (!error && data && data.length > 0) {
       const rows = data.map(r => [r.sezione, r.nome, r.ingredienti||'', r.prezzo||'', r.badge||'', r.allergeni||'']);
       buildMenu(rows);
-      console.log('✅ Menu da Supabase (' + rows.length + ' voci)');
-      return;
+      console.log('✅ Menu aggiornato da Supabase (' + rows.length + ' voci)');
     }
-  } catch(e) {}
-  buildMenu();
-  console.log('ℹ️ Menu da dati locali');
+  } catch(e) {
+    console.log('ℹ️ Supabase non disponibile, uso dati locali');
+  }
 })();
 <!-- Auto-reload on new deploy -->
 <script>
